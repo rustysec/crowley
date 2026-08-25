@@ -1,0 +1,37 @@
+# crowley — example configuration.
+#
+# Copy this file to `crowley.toml` (or anywhere else) and pass it with
+# `-c <path>`. Every key is optional; values shown here are the defaults.
+# CLI flags override the config file, which overrides these defaults.
+
+# Path to the `crwl` binary (a bare name resolves through PATH).
+crwl_bin = "crwl"
+
+# Default `-o` output format for fetched content.
+# all | json | markdown | md | markdown-fit | md-fit
+output_format = "markdown"
+
+# Default browser profile used by crwl (e.g. for pages behind a login).
+# profile = "default"
+
+# Kill a crwl invocation after this many seconds.
+timeout_secs = 60
+
+# Cap tool responses at this many characters (overflow is truncated).
+max_output_chars = 200000
+
+# Default deep-crawl strategy: bfs | dfs | best-first.
+# deep_crawl = "bfs"
+
+# Default page cap for deep-crawl mode.
+# max_pages = 10
+
+# Extra raw arguments forwarded verbatim to every `crwl crawl` invocation.
+# extra_args = ["--bypass-cache"]
+
+# Identity reported in the MCP `initialize` handshake.
+server_name = "crowley"
+server_version = "0.1.0"
+
+# Verbose logging (and crwl -v by default).
+verbose = false

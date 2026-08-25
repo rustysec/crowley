@@ -1,0 +1,23 @@
+[package]
+name = "crowley"
+version = "0.1.0"
+edition = "2024"
+description = "MCP server that fetches web content as markdown via the crwl CLI"
+license = "MIT"
+keywords = ["mcp", "model-context-protocol", "crwl", "markdown", "web", "fetch"]
+categories = ["command-line-utilities", "web-programming"]
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.6", features = ["derive"] }
+rmcp = { version = "3.1.4", features = ["transport-io"] }
+schemars = "1.2.2"
+serde = { version = "1.0.229", features = ["derive"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "process", "io-util", "time", "signal"] }
+toml = "1.1.4"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+
+[profile.release]
+lto = "thin"
+strip = "symbols"
