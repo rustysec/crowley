@@ -39,6 +39,8 @@ cargo run --release            # serves MCP over stdio
 
 ### Register with an MCP client
 
+### stdio (default)
+
 Point your MCP client at the binary. Example for Claude Desktop / generic
 stdio clients:
 
@@ -52,6 +54,22 @@ stdio clients:
   }
 }
 ```
+
+### HTTP (Streamable HTTP)
+
+Start crowley in HTTP mode and point remote clients at the endpoint:
+
+```bash
+crowley --transport http --port 4321           # http://127.0.0.1:4321/mcp
+crowley -c crowley.toml                        # transport = "http" in the file
+```
+
+Any MCP client that supports the Streamable HTTP transport connects to
+`http://<host>:<port>/<http_path>` (default path `/mcp`) with the
+`2026-07-28` protocol version. Simple request/response calls are answered
+with plain `application/json`; streaming falls back to `text/event-stream`
+per spec. Bind `--host 0.0.0.0` to listen on all interfaces (add the
+hostname to `allowed_hosts` for DNS-rebinding protection).
 
 ### Try it interactively
 
@@ -102,6 +120,14 @@ extra_args = []                # extra raw args passed to every `crwl crawl`
 server_name = "crowley"        # name reported in the MCP initialize handshake
 server_version = "0.1.0"       # version reported in the initialize handshake
 verbose = false                # verbose logging + crwl -v by default
+
+transport = "stdio"            # stdio | http
+host = "127.0.0.1"             # bind address (http transport)
+port = 4321                    # bind port; 0 = ephemeral (logged at startup)
+http_path = "/mcp"             # URL path for the MCP endpoint
+allowed_hosts = [              # Host header allowlist (DNS-rebinding guard)
+  "localhost", "127.0.0.1", "::1",
+]
 ```
 
 ### CLI flags
@@ -118,6 +144,11 @@ verbose = false                # verbose logging + crwl -v by default
     --extra-arg <ARG>          extra raw crwl arg (repeatable, appended)
     --server-name <NAME>       MCP server name
     --server-version <VERSION> MCP server version
+    --transport <MODE>         stdio (default) | http
+    --host <HOST>              bind address for http transport
+    --port <PORT>              bind port for http transport (0 = ephemeral)
+    --http-path <PATH>         URL path for the http MCP endpoint
+    --allowed-host <HOST>      extra allowed Host header (repeatable)
     --print-config             print the effective config as TOML and exit
 -v, --verbose                  verbose logging
 ```
@@ -127,6 +158,27 @@ verbose = false                # verbose logging + crwl -v by default
 ```bash
 crowley --print-config
 crowley -c crowley.toml --output md-fit --print-config
+```
+
+### HTTP wire format (for custom clients)
+
+Requests use the `2026-07-28` protocol: send `POST` with
+`Content-Type: application/json` and `Accept: application/json, text/event-stream`,
+carrying the method in the `Mcp-Method` header and per-request metadata inside
+`params._meta`:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {
+    "_meta": {
+      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+      "io.modelcontextprotocol/clientCapabilities": {}
+    }
+  }
+}
 ```
 
 ## Development
@@ -141,7 +193,7 @@ Layout:
 - `src/config.rs` — config types, TOML loading, CLI/TOML merge, tests
 - `src/crwl.rs` — async `crwl crawl` runner with timeout + kill
 - `src/server.rs` — the MCP `fetch` tool and server identity
-- `src/main.rs` — CLI, logging, stdio serving, shutdown handling
+- `src/main.rs` — CLI, logging, stdio/HTTP serving, shutdown handling
 
 ## License
 

@@ -35,3 +35,23 @@ server_version = "0.1.0"
 
 # Verbose logging (and crwl -v by default).
 verbose = false
+
+# ---------------------------------------------------------------------------
+# Transport — MCP over stdio (default) or Streamable HTTP (port listening).
+# ---------------------------------------------------------------------------
+
+# stdio | http
+transport = "stdio"
+
+# Bind address and port for the http transport.
+# port 0 binds an ephemeral port; the actual address is logged at startup.
+host = "127.0.0.1"
+port = 4321
+
+# URL path the MCP Streamable HTTP endpoint is mounted at.
+http_path = "/mcp"
+
+# Allowed `Host` header values for the http transport (DNS-rebinding guard).
+# Add any hostname clients use, e.g. "0.0.0.0" when binding all interfaces
+# or a reverse-proxy host like "example.com:8080".
+allowed_hosts = ["localhost", "127.0.0.1", "::1"]

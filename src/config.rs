@@ -69,8 +69,50 @@ impl DeepCrawlStrategy {
     }
 }
 
+/// Transports the MCP server can serve over.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Deserialize, Serialize)]
+pub enum TransportMode {
+    /// MCP over the process's stdin/stdout (default for local hosts).
+    #[value(name = "stdio")]
+    #[serde(rename = "stdio")]
+    Stdio,
+    /// MCP Streamable HTTP — listen on a TCP port for remote clients.
+    #[value(name = "http")]
+    #[serde(rename = "http")]
+    Http,
+}
+
+impl TransportMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            TransportMode::Stdio => "stdio",
+            TransportMode::Http => "http",
+        }
+    }
+}
+
 fn default_crwl_bin() -> String {
     "crwl".to_string()
+}
+
+fn default_transport() -> TransportMode {
+    TransportMode::Stdio
+}
+
+fn default_host() -> String {
+    "127.0.0.1".to_string()
+}
+
+fn default_port() -> u16 {
+    4321
+}
+
+fn default_http_path() -> String {
+    "/mcp".to_string()
+}
+
+fn default_allowed_hosts() -> Vec<String> {
+    vec!["localhost".into(), "127.0.0.1".into(), "::1".into()]
 }
 
 fn default_output_format() -> OutputFormat {
@@ -129,6 +171,24 @@ pub struct Config {
     /// Emit verbose logging from this server.
     #[serde(default)]
     pub verbose: bool,
+    /// MCP transport to serve over: `stdio` (default) or `http`.
+    #[serde(default = "default_transport")]
+    pub transport: TransportMode,
+    /// Bind address for `http` transport.
+    #[serde(default = "default_host")]
+    pub host: String,
+    /// Bind port for `http` transport. `0` binds an ephemeral port (the
+    /// actual port is logged at startup).
+    #[serde(default = "default_port")]
+    pub port: u16,
+    /// URL path the MCP Streamable HTTP endpoint is mounted at.
+    #[serde(default = "default_http_path")]
+    pub http_path: String,
+    /// Allowed `Host` header values for the `http` transport (prevents DNS
+    /// rebinding). Add the hostnames clients will use, e.g. `0.0.0.0` or a
+    /// reverse-proxy hostname.
+    #[serde(default = "default_allowed_hosts")]
+    pub allowed_hosts: Vec<String>,
 }
 
 impl Default for Config {
@@ -145,6 +205,11 @@ impl Default for Config {
             server_name: default_server_name(),
             server_version: default_server_version(),
             verbose: false,
+            transport: default_transport(),
+            host: default_host(),
+            port: default_port(),
+            http_path: default_http_path(),
+            allowed_hosts: default_allowed_hosts(),
         }
     }
 }
@@ -178,6 +243,11 @@ pub struct ConfigFile {
     pub server_name: Option<String>,
     pub server_version: Option<String>,
     pub verbose: Option<bool>,
+    pub transport: Option<TransportMode>,
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub http_path: Option<String>,
+    pub allowed_hosts: Option<Vec<String>>,
 }
 
 /// Command-line options. Each flag, when present, overrides the config file.
@@ -243,6 +313,21 @@ pub struct Cli {
     /// Emit verbose logging.
     #[arg(long = "verbose", short = 'v')]
     pub verbose: bool,
+    /// MCP transport: stdio (default) or http.
+    #[arg(long = "transport", value_name = "MODE", value_enum)]
+    pub transport: Option<TransportMode>,
+    /// Bind address for the http transport.
+    #[arg(long = "host", value_name = "HOST")]
+    pub host: Option<String>,
+    /// Bind port for the http transport (0 = ephemeral).
+    #[arg(long = "port", value_name = "PORT")]
+    pub port: Option<u16>,
+    /// URL path for the http transport's MCP endpoint.
+    #[arg(long = "http-path", value_name = "PATH")]
+    pub http_path: Option<String>,
+    /// Extra allowed Host header for the http transport (repeatable).
+    #[arg(long = "allowed-host", value_name = "HOST")]
+    pub allowed_hosts: Vec<String>,
 }
 
 impl Config {
@@ -295,6 +380,21 @@ impl Config {
         if cli.verbose {
             self.verbose = true;
         }
+        if let Some(transport) = cli.transport {
+            self.transport = transport;
+        }
+        if let Some(host) = &cli.host {
+            self.host = host.clone();
+        }
+        if let Some(port) = cli.port {
+            self.port = port;
+        }
+        if let Some(path) = &cli.http_path {
+            self.http_path = path.clone();
+        }
+        if !cli.allowed_hosts.is_empty() {
+            self.allowed_hosts.extend(cli.allowed_hosts.clone());
+        }
     }
 
     fn apply_file(&mut self, file: ConfigFile) {
@@ -331,6 +431,21 @@ impl Config {
         if let Some(verbose) = file.verbose {
             self.verbose = verbose;
         }
+        if let Some(transport) = file.transport {
+            self.transport = transport;
+        }
+        if let Some(host) = file.host {
+            self.host = host;
+        }
+        if let Some(port) = file.port {
+            self.port = port;
+        }
+        if let Some(path) = file.http_path {
+            self.http_path = path;
+        }
+        if let Some(hosts) = file.allowed_hosts {
+            self.allowed_hosts = hosts;
+        }
     }
 
     /// Render the effective configuration as pretty TOML.
@@ -351,6 +466,10 @@ mod tests {
         assert_eq!(config.timeout_secs, 60);
         assert!(config.max_output_chars > 0);
         assert_eq!(config.server_name, "crowley");
+        assert_eq!(config.transport, TransportMode::Stdio);
+        assert_eq!(config.host, "127.0.0.1");
+        assert_eq!(config.port, 4321);
+        assert_eq!(config.http_path, "/mcp");
     }
 
     #[test]
@@ -397,6 +516,11 @@ mod tests {
             server_version: None,
             print_config: false,
             verbose: true,
+            transport: Some(TransportMode::Http),
+            host: Some("0.0.0.0".into()),
+            port: Some(9000),
+            http_path: Some("/api/mcp".into()),
+            allowed_hosts: vec!["example.com".into()],
         };
         config.apply_cli(&cli);
         assert_eq!(config.crwl_bin, "crwl2");
@@ -404,6 +528,15 @@ mod tests {
         assert_eq!(config.extra_args, vec!["-v"]);
         assert!(config.verbose);
         assert_eq!(config.output_format, OutputFormat::Markdown);
+        assert_eq!(config.transport, TransportMode::Http);
+        assert_eq!(config.host, "0.0.0.0");
+        assert_eq!(config.port, 9000);
+        assert_eq!(config.http_path, "/api/mcp");
+        // --allowed-host appends to the default loopback allowlist.
+        assert_eq!(
+            config.allowed_hosts,
+            vec!["localhost", "127.0.0.1", "::1", "example.com"]
+        );
     }
 
     #[test]
