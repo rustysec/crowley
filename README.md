@@ -1,5 +1,7 @@
 # crowley
 
+(Assisted by [pi](https://pi.dev) + [llama.cpp](https://llama.app/) + [deepseek](https://huggingface.co/unsloth/DeepSeek-V4-Flash-0731-GGUF))
+
 A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server that
 fetches web content as clean markdown by driving the
 [`crwl`](https://github.com/zaferdursun/crwl) CLI.
