@@ -21,6 +21,10 @@ pub struct FetchRequest {
     pub output: Option<String>,
     /// `-p` browser profile name.
     pub profile: Option<String>,
+    /// `-B` browser config file (YAML/JSON).
+    pub browser_config: Option<PathBuf>,
+    /// `-C` crawler config file (YAML/JSON).
+    pub crawler_config: Option<PathBuf>,
     /// `--deep-crawl` strategy (`bfs`, `dfs`, `best-first`).
     pub deep_crawl: Option<String>,
     /// `--max-pages` limit for deep crawls.
@@ -82,6 +86,12 @@ impl CrwlRunner {
 
         if let Some(profile) = &request.profile {
             command.arg("-p").arg(profile);
+        }
+        if let Some(path) = &request.browser_config {
+            command.arg("-B").arg(path);
+        }
+        if let Some(path) = &request.crawler_config {
+            command.arg("-C").arg(path);
         }
         if let Some(strategy) = &request.deep_crawl {
             command.arg("--deep-crawl").arg(strategy);
@@ -182,4 +192,71 @@ pub fn fetch_error(exit: &FetchOutput, url: &str) -> anyhow::Error {
     };
     let message = format!("crwl {kind} while fetching `{url}`{detail}").trim().to_string();
     anyhow!(message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Write an executable fake `crwl` that dumps its argv to a fixed file
+    /// (one arg per line) and exits 0.
+    fn fake_crwl(argv_file: &std::path::Path) -> std::path::PathBuf {
+        let dir = argv_file.parent().expect("argv file needs a parent dir");
+        let bin = dir.join("crwl");
+        std::fs::write(
+            &bin,
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' \"$@\" > {}\n",
+                argv_file.display()
+            ),
+        )
+        .expect("write fake crwl");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&bin).expect("stat fake crwl").permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&bin, perms).expect("chmod fake crwl");
+        }
+        bin
+    }
+
+    #[tokio::test]
+    async fn browser_and_crawler_config_flags_reach_crwl() {
+        let dir = std::env::temp_dir().join(format!("crowley-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        let argv_file = dir.join("argv.txt");
+        let bin = fake_crwl(&argv_file);
+        let browser = dir.join("browser.yaml");
+        let crawler = dir.join("crawler.yaml");
+        std::fs::write(&browser, "headless: true\n").expect("write browser config");
+        std::fs::write(&crawler, "max_depth: 2\n").expect("write crawler config");
+
+        let runner = CrwlRunner::new(bin.display().to_string(), Duration::from_secs(10));
+        let request = FetchRequest {
+            url: "https://example.com".into(),
+            output: Some("markdown".into()),
+            profile: None,
+            browser_config: Some(browser.clone()),
+            crawler_config: Some(crawler.clone()),
+            deep_crawl: None,
+            max_pages: None,
+            question: None,
+            output_file: None,
+            bypass_cache: false,
+            verbose: false,
+            extra_args: vec![],
+        };
+
+        let result = runner.fetch(&request).await.expect("fake crwl must run");
+        assert_eq!(result.status, Some(0), "fake crwl should exit 0");
+
+        let argv = std::fs::read_to_string(&argv_file).expect("read recorded argv");
+        assert!(argv.contains("crawl"), "crawl subcommand first: {argv}");
+        assert!(argv.contains(&format!("-B\n{}", browser.display())));
+        assert!(argv.contains(&format!("-C\n{}", crawler.display())));
+        assert!(argv.trim_end().ends_with("https://example.com"));
+
+        std::fs::remove_dir_all(&dir).expect("clean up temp dir");
+    }
 }

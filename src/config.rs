@@ -147,6 +147,12 @@ pub struct Config {
     /// Default browser profile (`crwl -p <profile>`).
     #[serde(default)]
     pub profile: Option<String>,
+    /// Path to a browser config file (`crwl -B <path>`, YAML/JSON).
+    #[serde(default)]
+    pub browser_config: Option<String>,
+    /// Path to a crawler config file (`crwl -C <path>`, YAML/JSON).
+    #[serde(default)]
+    pub crawler_config: Option<String>,
     /// Timeout (seconds) before a `crwl` invocation is killed.
     #[serde(default = "default_timeout_secs")]
     pub timeout_secs: u64,
@@ -197,6 +203,8 @@ impl Default for Config {
             crwl_bin: default_crwl_bin(),
             output_format: default_output_format(),
             profile: None,
+            browser_config: None,
+            crawler_config: None,
             timeout_secs: default_timeout_secs(),
             max_output_chars: default_max_output_chars(),
             deep_crawl: None,
@@ -220,6 +228,8 @@ impl Default for Config {
 /// crwl_bin = "crwl"
 /// output_format = "markdown"
 /// profile = "default"
+/// browser_config = "/path/to/browser.yaml"
+/// crawler_config = "/path/to/crawler.yaml"
 /// timeout_secs = 60
 /// max_output_chars = 200000
 /// deep_crawl = "bfs"
@@ -235,6 +245,8 @@ pub struct ConfigFile {
     pub crwl_bin: Option<String>,
     pub output_format: Option<OutputFormat>,
     pub profile: Option<String>,
+    pub browser_config: Option<String>,
+    pub crawler_config: Option<String>,
     pub timeout_secs: Option<u64>,
     pub max_output_chars: Option<usize>,
     pub deep_crawl: Option<DeepCrawlStrategy>,
@@ -277,6 +289,14 @@ pub struct Cli {
     /// Default browser profile used by crwl.
     #[arg(short = 'p', long = "profile", value_name = "NAME")]
     pub profile: Option<String>,
+
+    /// Path to a crwl browser config file (YAML/JSON) passed via -B.
+    #[arg(long = "browser-config", value_name = "PATH")]
+    pub browser_config: Option<String>,
+
+    /// Path to a crwl crawler config file (YAML/JSON) passed via -C.
+    #[arg(long = "crawler-config", value_name = "PATH")]
+    pub crawler_config: Option<String>,
 
     /// Kill crwl invocations after this many seconds.
     #[arg(long = "timeout", value_name = "SECS")]
@@ -356,6 +376,12 @@ impl Config {
         if cli.profile.is_some() {
             self.profile = cli.profile.clone();
         }
+        if cli.browser_config.is_some() {
+            self.browser_config = cli.browser_config.clone();
+        }
+        if cli.crawler_config.is_some() {
+            self.crawler_config = cli.crawler_config.clone();
+        }
         if let Some(timeout) = cli.timeout_secs {
             self.timeout_secs = timeout;
         }
@@ -406,6 +432,12 @@ impl Config {
         }
         if let Some(profile) = file.profile {
             self.profile = Some(profile);
+        }
+        if let Some(path) = file.browser_config {
+            self.browser_config = Some(path);
+        }
+        if let Some(path) = file.crawler_config {
+            self.crawler_config = Some(path);
         }
         if let Some(timeout) = file.timeout_secs {
             self.timeout_secs = timeout;
@@ -478,6 +510,8 @@ mod tests {
             crwl_bin = "/opt/bin/crwl"
             output_format = "md-fit"
             profile = "work"
+            browser_config = "/etc/crwl/browser.yaml"
+            crawler_config = "/etc/crwl/crawler.yaml"
             timeout_secs = 120
             max_output_chars = 1000
             deep_crawl = "best-first"
@@ -491,6 +525,8 @@ mod tests {
         assert_eq!(config.crwl_bin, "/opt/bin/crwl");
         assert_eq!(config.output_format, OutputFormat::MdFit);
         assert_eq!(config.profile.as_deref(), Some("work"));
+        assert_eq!(config.browser_config.as_deref(), Some("/etc/crwl/browser.yaml"));
+        assert_eq!(config.crawler_config.as_deref(), Some("/etc/crwl/crawler.yaml"));
         assert_eq!(config.timeout_secs, 120);
         assert_eq!(config.max_output_chars, 1000);
         assert_eq!(config.deep_crawl, Some(DeepCrawlStrategy::BestFirst));
@@ -507,6 +543,8 @@ mod tests {
             crwl_bin: Some("crwl2".into()),
             output_format: None,
             profile: None,
+            browser_config: Some("browser.yaml".into()),
+            crawler_config: None,
             timeout_secs: Some(90),
             max_output_chars: None,
             deep_crawl: None,
@@ -525,6 +563,8 @@ mod tests {
         config.apply_cli(&cli);
         assert_eq!(config.crwl_bin, "crwl2");
         assert_eq!(config.timeout_secs, 90);
+        assert_eq!(config.browser_config.as_deref(), Some("browser.yaml"));
+        assert_eq!(config.crawler_config, None);
         assert_eq!(config.extra_args, vec!["-v"]);
         assert!(config.verbose);
         assert_eq!(config.output_format, OutputFormat::Markdown);

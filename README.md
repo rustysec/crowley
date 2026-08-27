@@ -84,17 +84,19 @@ printf '%s\n' \
 
 ## The `fetch` tool
 
-| Argument       | Meaning                                                                 |
-|----------------|-------------------------------------------------------------------------|
-| `url`          | **(required)** the page to fetch                                        |
-| `output`       | `all` / `json` / `markdown` / `md` / `markdown-fit` / `md-fit`          |
-| `profile`      | crwl browser profile (pages behind a login)                             |
-| `deep_crawl`   | `bfs` / `dfs` / `best-first` — follow and crawl linked pages            |
-| `max_pages`    | cap for deep-crawl mode                                                 |
-| `question`     | ask the crwl LLM pipeline a question about the page (returns the answer)|
-| `output_file`  | write content to a file; its contents are returned instead              |
-| `bypass_cache` | re-fetch from the network, ignoring crwl's cache                        |
-| `verbose`      | include crwl crawl progress in the result's stderr appendix             |
+| Argument         | Meaning                                                                 |
+|------------------|-------------------------------------------------------------------------|
+| `url`            | **(required)** the page to fetch                                        |
+| `output`         | `all` / `json` / `markdown` / `md` / `markdown-fit` / `md-fit`          |
+| `profile`        | crwl browser profile (pages behind a login)                             |
+| `browser_config` | path to a crwl browser config file (`-B`, YAML/JSON)                   |
+| `crawler_config` | path to a crwl crawler config file (`-C`, YAML/JSON)                   |
+| `deep_crawl`     | `bfs` / `dfs` / `best-first` — follow and crawl linked pages            |
+| `max_pages`      | cap for deep-crawl mode                                                 |
+| `question`       | ask the crwl LLM pipeline a question about the page (returns the answer)|
+| `output_file`    | write content to a file; its contents are returned instead              |
+| `bypass_cache`   | re-fetch from the network, ignoring crwl's cache                        |
+| `verbose`        | include crwl crawl progress in the result's stderr appendix             |
 
 Any omitted argument falls back to the server configuration.
 
@@ -112,6 +114,8 @@ fully annotated copy.
 crwl_bin = "crwl"              # path or name of the crwl binary
 output_format = "markdown"     # default -o: all|json|markdown|md|markdown-fit|md-fit
 profile = "default"            # default -p browser profile
+browser_config = "browser.yaml" # default -B browser config file (YAML/JSON)
+crawler_config = "crawler.yaml" # default -C crawler config file (YAML/JSON)
 timeout_secs = 60              # kill crwl after this many seconds
 max_output_chars = 200000      # truncate tool responses to this many chars
 deep_crawl = "bfs"             # default strategy: bfs|dfs|best-first
@@ -137,6 +141,8 @@ allowed_hosts = [              # Host header allowlist (DNS-rebinding guard)
     --crwl-bin <PATH>          crwl binary override
     --output <FORMAT>          default output format
 -p, --profile <NAME>           default browser profile
+    --browser-config <PATH>    crwl browser config file (-B)
+    --crawler-config <PATH>    crwl crawler config file (-C)
     --timeout <SECS>           process timeout
     --max-output-chars <N>     response truncation cap
     --deep-crawl <STRATEGY>    default deep-crawl strategy

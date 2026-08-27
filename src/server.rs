@@ -80,6 +80,12 @@ pub struct FetchParams {
     /// Browser profile to use (e.g. for pages behind a login).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<String>,
+    /// Path to a crwl browser config file (YAML/JSON), passed via -B.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub browser_config: Option<String>,
+    /// Path to a crwl crawler config file (YAML/JSON), passed via -C.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub crawler_config: Option<String>,
     /// Deep-crawl strategy. Follows and crawls linked pages.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deep_crawl: Option<DeepCrawlChoice>,
@@ -138,6 +144,14 @@ impl CrowleyServer {
             url: params.url.clone(),
             output: Some(output),
             profile: params.profile.or_else(|| self.config.profile.clone()),
+            browser_config: params
+                .browser_config
+                .or_else(|| self.config.browser_config.clone())
+                .map(Into::into),
+            crawler_config: params
+                .crawler_config
+                .or_else(|| self.config.crawler_config.clone())
+                .map(Into::into),
             deep_crawl,
             max_pages: params.max_pages.or(self.config.max_pages),
             question: params.question,
@@ -223,7 +237,8 @@ impl CrowleyServer {
     /// Runs `crwl crawl -o markdown <url>` and returns the extracted content,
     /// ready to be read or summarized. Pass `output_file` for very large
     /// pages (contents are returned from the file), `profile` for pages
-    /// behind a login, `deep_crawl`/`max_pages` to follow links, or
+    /// behind a login, `browser_config`/`crawler_config` for YAML/JSON
+    /// config files, `deep_crawl`/`max_pages` to follow links, or
     /// `question` to get an LLM-generated answer about the page instead.
     #[tool]
     async fn fetch(&self, params: Parameters<FetchParams>) -> Result<String, String> {
