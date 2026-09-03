@@ -518,15 +518,20 @@ mod tests {
             max_pages = 5
             extra_args = ["-bc"]
         "#;
-        let file: ConfigFile =
-            toml::from_str(text).expect("test fixture must be valid TOML");
+        let file: ConfigFile = toml::from_str(text).expect("test fixture must be valid TOML");
         let mut config = Config::default();
         config.apply_file(file);
         assert_eq!(config.crwl_bin, "/opt/bin/crwl");
         assert_eq!(config.output_format, OutputFormat::MdFit);
         assert_eq!(config.profile.as_deref(), Some("work"));
-        assert_eq!(config.browser_config.as_deref(), Some("/etc/crwl/browser.yaml"));
-        assert_eq!(config.crawler_config.as_deref(), Some("/etc/crwl/crawler.yaml"));
+        assert_eq!(
+            config.browser_config.as_deref(),
+            Some("/etc/crwl/browser.yaml")
+        );
+        assert_eq!(
+            config.crawler_config.as_deref(),
+            Some("/etc/crwl/crawler.yaml")
+        );
         assert_eq!(config.timeout_secs, 120);
         assert_eq!(config.max_output_chars, 1000);
         assert_eq!(config.deep_crawl, Some(DeepCrawlStrategy::BestFirst));
@@ -536,8 +541,10 @@ mod tests {
 
     #[test]
     fn cli_overrides_config_file() {
-        let mut config = Config::default();
-        config.timeout_secs = 30;
+        let mut config = Config {
+            timeout_secs: 30,
+            ..Default::default()
+        };
         let cli = Cli {
             config: None,
             crwl_bin: Some("crwl2".into()),
@@ -583,8 +590,7 @@ mod tests {
     fn round_trip_toml() {
         let config = Config::default();
         let text = config.to_toml().expect("serialization must not fail");
-        let parsed: Config =
-            toml::from_str(&text).expect("serialized config must re-parse");
+        let parsed: Config = toml::from_str(&text).expect("serialized config must re-parse");
         assert_eq!(parsed.crwl_bin, config.crwl_bin);
         assert_eq!(parsed.output_format, config.output_format);
     }

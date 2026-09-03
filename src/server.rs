@@ -138,7 +138,11 @@ impl CrowleyServer {
         let deep_crawl = params
             .deep_crawl
             .map(|choice| choice.as_str().to_string())
-            .or_else(|| self.config.deep_crawl.map(|strategy| strategy.as_str().to_string()));
+            .or_else(|| {
+                self.config
+                    .deep_crawl
+                    .map(|strategy| strategy.as_str().to_string())
+            });
 
         let request = FetchRequest {
             url: params.url.clone(),
@@ -154,7 +158,6 @@ impl CrowleyServer {
                 .map(Into::into),
             deep_crawl,
             max_pages: params.max_pages.or(self.config.max_pages),
-            question: params.question,
             output_file: params.output_file.map(Into::into),
             bypass_cache: params.bypass_cache.unwrap_or(false),
             verbose: params.verbose.unwrap_or(self.config.verbose),
@@ -183,7 +186,7 @@ impl CrowleyServer {
                     return Err(format!(
                         "crwl succeeded but its output file `{}` could not be read: {err}",
                         path.display()
-                    ))
+                    ));
                 }
             }
         } else {
@@ -207,9 +210,8 @@ impl CrowleyServer {
         let max = self.config.max_output_chars.max(1);
         if result.len() > max {
             let truncated = truncate_at_char_boundary(&result, max).to_string();
-            result = format!(
-                "{truncated}\n\n[truncated: showing {max} of {original_len} characters]"
-            );
+            result =
+                format!("{truncated}\n\n[truncated: showing {max} of {original_len} characters]");
         }
 
         Ok(result)

@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use tokio::io::AsyncReadExt;
 use tokio::process::Command;
 
@@ -29,8 +29,6 @@ pub struct FetchRequest {
     pub deep_crawl: Option<String>,
     /// `--max-pages` limit for deep crawls.
     pub max_pages: Option<u32>,
-    /// `-q` LLM question about the page content.
-    pub question: Option<String>,
     /// `-O` output file path. When set, the fetched content is written there
     /// instead of stdout.
     pub output_file: Option<PathBuf>,
@@ -98,10 +96,6 @@ impl CrwlRunner {
         }
         if let Some(max_pages) = request.max_pages {
             command.arg("--max-pages").arg(max_pages.to_string());
-        }
-        if let Some(question) = &request.question {
-            // -q expects a quoted query string; pass it as a single argv entry.
-            command.arg("-q").arg(question);
         }
         if let Some(path) = &request.output_file {
             command.arg("-O").arg(path);
@@ -190,7 +184,9 @@ pub fn fetch_error(exit: &FetchOutput, url: &str) -> anyhow::Error {
         let len = stderr.len().min(2000);
         format!(": {}", &stderr[..len])
     };
-    let message = format!("crwl {kind} while fetching `{url}`{detail}").trim().to_string();
+    let message = format!("crwl {kind} while fetching `{url}`{detail}")
+        .trim()
+        .to_string();
     anyhow!(message)
 }
 
@@ -214,7 +210,9 @@ mod tests {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(&bin).expect("stat fake crwl").permissions();
+            let mut perms = std::fs::metadata(&bin)
+                .expect("stat fake crwl")
+                .permissions();
             perms.set_mode(0o755);
             std::fs::set_permissions(&bin, perms).expect("chmod fake crwl");
         }
@@ -241,7 +239,6 @@ mod tests {
             crawler_config: Some(crawler.clone()),
             deep_crawl: None,
             max_pages: None,
-            question: None,
             output_file: None,
             bypass_cache: false,
             verbose: false,
